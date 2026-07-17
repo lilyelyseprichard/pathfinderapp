@@ -23,8 +23,8 @@ const neutralDark = {
 };
 
 // Every preset is just a base color — accent/hover/soft/ring for both light
-// and dark mode are all derived from its hue+saturation (see buildAccentColors
-// below), so adding a new option here is a one-line change.
+// and dark mode are all derived from it (see buildPresetAccentColors below),
+// so adding a new option here is a one-line change.
 export const ACCENT_PRESETS = [
   { key: "maroon", label: "Maroon", base: "#7c2140" },
   { key: "indigo", label: "Indigo", base: "#273f86" },
@@ -36,10 +36,16 @@ export const ACCENT_PRESETS = [
 
 const DEFAULT_ACCENT_KEY = "maroon";
 
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v));
+}
+
 // Fixed saturation/lightness targets per role, tuned to reproduce the
-// original hand-picked maroon theme almost exactly when fed #7c2140 — see
-// buildAccentColors. Only the hue (and base saturation) changes per preset.
-function buildAccentColors(baseHex, scheme) {
+// original hand-picked maroon theme almost exactly when fed #7c2140. Presets
+// only supply a hue+saturation — their own lightness is ignored on purpose,
+// since every preset was authored as a light-mode-ish swatch and this is
+// what maps it to a readable color in both modes.
+function buildPresetAccentColors(baseHex, scheme) {
   const { h, s } = hexToHsl(baseHex);
   if (scheme === "dark") {
     return {
@@ -54,6 +60,32 @@ function buildAccentColors(baseHex, scheme) {
     accentHover: hslToHex(h, s, 24),
     accentSoft: hslToHex(h, s * 0.8, 91),
     accentRing: hslToRgba(h, s, 31, 0.16),
+  };
+}
+
+// Custom (color-wheel-picked) colors, unlike presets, need their lightness to
+// actually matter — that's the whole point of the lightness slider. Each
+// scheme gets a wide-but-bounded window so the slider stays responsive across
+// most of its range while never landing on an illegibly pale/dark accent.
+function buildCustomAccentColors(baseHex, scheme) {
+  const { h, s, l } = hexToHsl(baseHex);
+  if (scheme === "dark") {
+    const accentL = clamp(l, 50, 85);
+    const hoverL = clamp(accentL + 8, 50, 92);
+    return {
+      accent: hslToHex(h, s, accentL),
+      accentHover: hslToHex(h, s, hoverL),
+      accentSoft: hslToHex(h, s * 0.47, 18),
+      accentRing: hslToRgba(h, s, accentL, 0.22),
+    };
+  }
+  const accentL = clamp(l, 15, 50);
+  const hoverL = clamp(accentL - 8, 8, 50);
+  return {
+    accent: hslToHex(h, s, accentL),
+    accentHover: hslToHex(h, s, hoverL),
+    accentSoft: hslToHex(h, s * 0.8, 91),
+    accentRing: hslToRgba(h, s, accentL, 0.16),
   };
 }
 
@@ -81,7 +113,10 @@ export function useTheme() {
 
   const scheme = themePreference === "system" ? systemScheme : themePreference;
   const neutral = scheme === "dark" ? neutralDark : neutralLight;
-  const accentColors = buildAccentColors(resolveAccentBase(accent), scheme === "dark" ? "dark" : "light");
+  const resolvedScheme = scheme === "dark" ? "dark" : "light";
+  const accentColors = isCustomAccent(accent)
+    ? buildCustomAccentColors(resolveAccentBase(accent), resolvedScheme)
+    : buildPresetAccentColors(resolveAccentBase(accent), resolvedScheme);
 
   return { ...neutral, ...accentColors };
 }

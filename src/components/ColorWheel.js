@@ -12,13 +12,31 @@ const BAR_HEIGHT = 22;
 const HUE_GRADIENT =
   "conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)";
 
+// Keeps the lightness bar from ever landing on pure black/white, which would
+// zero out saturation and permanently erase the hue from the stored hex —
+// there'd be no way back to color from there. This still spans nearly the
+// full visual range.
+const MIN_LIGHTNESS = 4;
+const MAX_LIGHTNESS = 96;
+
+// CSS conic-gradient's 0deg points up (12 o'clock) and runs clockwise, but
+// atan2(dy, dx) in screen coordinates puts 0deg pointing right (3 o'clock).
+// Without correcting for that 90deg offset, a click on the wheel's visually
+// red top edge computes a hue around 270 (purple) instead of 0 (red).
+function screenAngleToHue(angle) {
+  return ((angle + 90) % 360 + 360) % 360;
+}
+
+function hueToScreenAngle(hue) {
+  return ((hue - 90) % 360 + 360) % 360;
+}
+
 function polarToHueSat(x, y) {
   const dx = x - RADIUS;
   const dy = y - RADIUS;
   const dist = Math.min(Math.hypot(dx, dy), RADIUS);
-  let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-  if (angle < 0) angle += 360;
-  return { h: angle, s: (dist / RADIUS) * 100 };
+  const screenAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  return { h: screenAngleToHue(screenAngle), s: (dist / RADIUS) * 100 };
 }
 
 // Web gets a real conic/radial-gradient wheel (react-native-web forwards
@@ -66,11 +84,12 @@ export default function ColorWheel({ value, onChange, onCommit }) {
     apply(hslToHex(h, newS, l));
   });
   const lightResponder = makeResponder((x) => {
-    const newL = (Math.min(Math.max(x, 0), WHEEL_SIZE) / WHEEL_SIZE) * 100;
+    const raw = (Math.min(Math.max(x, 0), WHEEL_SIZE) / WHEEL_SIZE) * 100;
+    const newL = Math.min(MAX_LIGHTNESS, Math.max(MIN_LIGHTNESS, raw));
     apply(hslToHex(h, s, newL));
   });
 
-  const dotAngle = (h * Math.PI) / 180;
+  const dotAngle = (hueToScreenAngle(h) * Math.PI) / 180;
   const dotDist = (s / 100) * RADIUS;
   const dotX = RADIUS + dotDist * Math.cos(dotAngle) - DOT_SIZE / 2;
   const dotY = RADIUS + dotDist * Math.sin(dotAngle) - DOT_SIZE / 2;
