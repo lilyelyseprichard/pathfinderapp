@@ -51,8 +51,15 @@ create table if not exists public.profiles (
   first_name text not null default '',
   last_name text not null default '',
   theme text not null default 'system' check (theme in ('system', 'light', 'dark')),
+  accent text not null default 'maroon',
   updated_at timestamptz not null default now()
 );
+
+-- Accent is either a built-in preset key (maroon/indigo/forest/plum/amber/teal)
+-- or a custom "#rrggbb" hex string picked from the color wheel, so it's a
+-- plain text column rather than a checked enum. Covers upgrading a profiles
+-- table created before this column existed.
+alter table public.profiles add column if not exists accent text not null default 'maroon';
 
 alter table public.profiles enable row level security;
 

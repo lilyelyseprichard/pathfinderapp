@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
-import { useTheme, shadow } from "../theme";
+import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { useTheme, shadow, ACCENT_PRESETS, resolveAccentBase, isCustomAccent } from "../theme";
 import { useAuth } from "../lib/auth";
 import { useProfile } from "../lib/profile";
 import { notify } from "../lib/notify";
 import { PrimaryButton } from "../components/Buttons";
-import { TextField, ChipSelect } from "../components/Field";
+import { TextField, ChipSelect, FieldLabel } from "../components/Field";
+import ColorWheel from "../components/ColorWheel";
 
 const THEME_OPTIONS = [
   { value: "system", label: "System" },
@@ -32,6 +33,9 @@ export default function AccountScreen() {
     notify("Saved.");
   }
 
+  const accent = profile.accent || "maroon";
+  const customSelected = isCustomAccent(accent);
+
   if (!loaded) {
     return (
       <View style={[styles.loading, { backgroundColor: c.bg }]}>
@@ -54,7 +58,35 @@ export default function AccountScreen() {
 
       <View style={[styles.card, shadow(c, "sm"), { backgroundColor: c.cardBg, borderColor: c.border, marginTop: 20 }]}>
         <Text style={[styles.sectionTitle, { color: c.text }]}>Appearance</Text>
-        <ChipSelect value={profile.theme} onChange={(theme) => updateProfile({ theme })} options={THEME_OPTIONS} />
+        <ChipSelect label="Theme" value={profile.theme} onChange={(theme) => updateProfile({ theme })} options={THEME_OPTIONS} />
+
+        <FieldLabel>Color scheme</FieldLabel>
+        <View style={styles.swatchRow}>
+          {ACCENT_PRESETS.map((p) => {
+            const selected = !customSelected && accent === p.key;
+            return (
+              <Pressable
+                key={p.key}
+                onPress={() => updateProfile({ accent: p.key })}
+                accessibilityLabel={p.label}
+                style={[styles.swatch, { backgroundColor: p.base, borderColor: selected ? c.text : "transparent" }]}
+              >
+                {selected ? <Text style={styles.check}>✓</Text> : null}
+              </Pressable>
+            );
+          })}
+          <Pressable
+            onPress={() => updateProfile({ accent: customSelected ? accent : resolveAccentBase(accent) })}
+            accessibilityLabel="Custom color"
+            style={[styles.swatch, styles.customSwatch, { borderColor: customSelected ? c.text : "transparent" }]}
+          >
+            <Text style={{ fontSize: 16 }}>🎨</Text>
+          </Pressable>
+        </View>
+
+        {customSelected ? (
+          <ColorWheel value={resolveAccentBase(accent)} onChange={(hex) => updateProfile({ accent: hex })} />
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -86,5 +118,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginBottom: 14,
+  },
+  swatchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 4,
+  },
+  swatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  customSwatch: {
+    backgroundColor: "#00000010",
+  },
+  check: {
+    color: "#fff",
+    fontWeight: "700",
   },
 });

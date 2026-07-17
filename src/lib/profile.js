@@ -4,7 +4,7 @@ import { supabase, supabaseConfigured } from "./supabase";
 
 const ProfileContext = createContext(null);
 
-const DEFAULT_PROFILE = { firstName: "", lastName: "", theme: "system" };
+const DEFAULT_PROFILE = { firstName: "", lastName: "", theme: "system", accent: "maroon" };
 
 function storageKey(uid) {
   return "pressroom-profile-v1-" + (uid || "local");
@@ -15,6 +15,7 @@ function fromDbRow(row) {
     firstName: row.first_name || "",
     lastName: row.last_name || "",
     theme: row.theme || "system",
+    accent: row.accent || "maroon",
   };
 }
 
@@ -24,6 +25,7 @@ function toDbRow(uid, profile) {
     first_name: profile.firstName,
     last_name: profile.lastName,
     theme: profile.theme,
+    accent: profile.accent,
     updated_at: new Date().toISOString(),
   };
 }
@@ -42,7 +44,7 @@ export function ProfileProvider({ uid, children }) {
       if (supabaseConfigured) {
         const { data, error } = await supabase
           .from("profiles")
-          .select("first_name, last_name, theme")
+          .select("first_name, last_name, theme, accent")
           .eq("id", uid)
           .maybeSingle();
         if (cancelled) return;
