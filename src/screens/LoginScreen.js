@@ -12,7 +12,7 @@ function notify(message) {
 
 export default function LoginScreen() {
   const c = useTheme();
-  const { signInEmail, signUpEmail, signInGoogle, resetPassword, configured } = useAuth();
+  const { signInEmail, signUpEmail, resetPassword, configured } = useAuth();
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,17 +35,6 @@ export default function LoginScreen() {
       } else {
         await signInEmail(email.trim(), password);
       }
-    } catch (err) {
-      notify(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleGoogle() {
-    setBusy(true);
-    try {
-      await signInGoogle();
     } catch (err) {
       notify(err.message);
     } finally {
@@ -86,9 +75,12 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
-        <Pressable onPress={handleGoogle} disabled={busy} style={[styles.oauthBtn, { borderColor: c.border, backgroundColor: c.cardBg }]}>
-          <Text style={{ color: c.text, fontWeight: "500" }}>🔵 Continue with Google</Text>
-        </Pressable>
+        <View style={[styles.oauthBtn, styles.disabledBtn, { borderColor: c.border, backgroundColor: c.cardBg }]}>
+          <Text style={{ color: c.textDim }}>🔵 Continue with Google</Text>
+          <View style={[styles.soonTag, { backgroundColor: c.accentSoft }]}>
+            <Text style={{ color: c.accent, fontSize: 11, fontWeight: "600" }}>Coming soon</Text>
+          </View>
+        </View>
 
         <View style={[styles.oauthBtn, styles.disabledBtn, { borderColor: c.border, backgroundColor: c.cardBg }]}>
           <Text style={{ color: c.textDim }}>Continue with Apple</Text>
