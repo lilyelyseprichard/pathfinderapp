@@ -1,16 +1,21 @@
 import React from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, Image, StyleSheet, Platform } from "react-native";
 import { useTheme, shadow } from "../theme";
 import { LinkButton, SecondaryButton } from "./Buttons";
+
+const logo = require("../../assets/icon.png");
 
 export default function TopBar({ title, showBack, onBack, userEmail, onSignOut }) {
   const c = useTheme();
   return (
     <View style={[styles.bar, shadow(c, "sm"), { backgroundColor: c.cardBg, borderBottomColor: c.border }]}>
       {showBack ? <LinkButton title="← All Stories" onPress={onBack} style={styles.back} /> : <View style={styles.backSpacer} />}
-      <Text style={[styles.title, { color: c.text }]} numberOfLines={1}>
-        {title}
-      </Text>
+      <View style={styles.titleRow}>
+        <Image source={logo} style={styles.logo} />
+        <Text style={[styles.title, { color: c.text }]} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
       <View style={styles.user}>
         {userEmail ? (
           <Text style={{ color: c.textDim, fontSize: 13 }} numberOfLines={1}>
@@ -38,8 +43,18 @@ const styles = StyleSheet.create({
   backSpacer: {
     minWidth: 90,
   },
-  title: {
+  titleRow: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  logo: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+  },
+  title: {
     fontSize: 18,
     fontWeight: "700",
   },

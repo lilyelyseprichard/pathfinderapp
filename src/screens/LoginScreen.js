@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from "react-native";
+import { View, Text, Image, StyleSheet, ScrollView, Pressable, Alert, Platform } from "react-native";
 import { useTheme, shadow } from "../theme";
 import { TextField } from "../components/Field";
 import { PrimaryButton } from "../components/Buttons";
 import { useAuth } from "../lib/auth";
+
+const logo = require("../../assets/source/pressroom-logo-full.png");
 
 function notify(message) {
   if (Platform.OS === "web") window.alert(message);
@@ -58,7 +60,7 @@ export default function LoginScreen() {
   return (
     <ScrollView contentContainerStyle={[styles.body, { backgroundColor: c.bg }]} keyboardShouldPersistTaps="handled">
       <View style={[styles.card, shadow(c, "lg"), { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[styles.logo, { color: c.text }]}>📓 Pressroom</Text>
+        <Image source={logo} style={styles.logo} />
 
         <View style={[styles.modeToggle, { backgroundColor: c.bg, borderColor: c.border }]}>
           <Pressable
@@ -152,9 +154,10 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   logo: {
-    fontSize: 21,
-    fontWeight: "700",
-    textAlign: "center",
+    width: 88,
+    height: 88,
+    borderRadius: 18,
+    alignSelf: "center",
     marginBottom: 26,
   },
   modeToggle: {

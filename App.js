@@ -15,7 +15,7 @@ function MainApp({ userEmail, onSignOut }) {
   return (
     <View style={styles.flex}>
       <TopBar
-        title="📓 Pressroom"
+        title="Pressroom"
         showBack={!!storyId}
         onBack={() => setStoryId(null)}
         userEmail={userEmail}

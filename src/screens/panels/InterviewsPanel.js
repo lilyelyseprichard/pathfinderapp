@@ -13,6 +13,7 @@ import { uuid } from "../../lib/id";
 import { formatDuration, todayISO } from "../../lib/format";
 import { notify, confirmDialog } from "../../lib/notify";
 import * as fileStore from "../../lib/fileStore";
+import { transcribeAudio, transcriptionConfigured } from "../../lib/transcribe";
 import { PrimaryButton, SecondaryButton, LinkButton } from "../../components/Buttons";
 import { TextField } from "../../components/Field";
 import { SectionHeader, EmptyState, HintBox } from "../../components/Misc";
@@ -80,6 +81,7 @@ export default function InterviewsPanel({ story, update }) {
   const [lineModalVisible, setLineModalVisible] = useState(false);
   const [lineSpeaker, setLineSpeaker] = useState("");
   const [lineText, setLineText] = useState("");
+  const [transcribingId, setTranscribingId] = useState(null);
 
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: "document" });
   const startTimeRef = useRef(0);
@@ -168,6 +170,36 @@ export default function InterviewsPanel({ story, update }) {
     setViewingId(null);
   }
 
+  async function autoTranscribe(interview) {
+    if (!interview.recordingId) {
+      notify("No recording to transcribe.");
+      return;
+    }
+    if (interview.transcript.length > 0) {
+      const ok = await confirmDialog("This replaces the current transcript lines with a fresh auto-generated transcript. Continue?");
+      if (!ok) return;
+    }
+    setTranscribingId(interview.id);
+    try {
+      const uri = await fileStore.getUri(interview.recordingId);
+      if (!uri) throw new Error("Recording file not found.");
+      const lines = await transcribeAudio(uri);
+      if (!lines.length) {
+        notify("No speech detected in the recording.");
+        return;
+      }
+      update((s) => {
+        const target = s.interviews.find((i) => i.id === interview.id);
+        target.transcript = lines.map((line) => ({ id: uuid(), ...line }));
+      });
+      notify("Transcript generated.");
+    } catch (err) {
+      notify("Couldn't generate transcript: " + err.message);
+    } finally {
+      setTranscribingId(null);
+    }
+  }
+
   function openLineModal() {
     setLineSpeaker("");
     setLineText("");
@@ -243,6 +275,19 @@ export default function InterviewsPanel({ story, update }) {
           </Text>
 
           <InterviewAudioPlayer recordingId={viewing.recordingId} />
+
+          {transcriptionConfigured ? (
+            <SecondaryButton
+              title={transcribingId === viewing.id ? "Transcribing…" : "✨ Auto-transcribe"}
+              onPress={() => autoTranscribe(viewing)}
+              disabled={transcribingId === viewing.id || !viewing.recordingId}
+              style={{ marginTop: 12, alignSelf: "flex-start" }}
+            />
+          ) : (
+            <HintBox>
+              Auto-transcribe is off. Add EXPO_PUBLIC_GROQ_API_KEY to .env.local (free key at console.groq.com/keys) to enable it.
+            </HintBox>
+          )}
 
           <TextField
             value={search}
