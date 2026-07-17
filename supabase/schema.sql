@@ -41,3 +41,24 @@ create policy "Users manage their own files"
   for all
   using (bucket_id = 'story-files' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'story-files' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Account settings: name + theme preference, one row per user. The row's id
+-- IS the user's auth id (not a separate generated key), so a client upsert
+-- with id = auth.uid() both creates and updates it.
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  first_name text not null default '',
+  last_name text not null default '',
+  theme text not null default 'system' check (theme in ('system', 'light', 'dark')),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Users manage their own profile" on public.profiles;
+create policy "Users manage their own profile"
+  on public.profiles
+  for all
+  using (auth.uid() = id)
+  with check (auth.uid() = id);

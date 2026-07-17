@@ -1,4 +1,5 @@
 import { useColorScheme, Platform } from "react-native";
+import { useProfile } from "./lib/profile";
 
 const light = {
   bg: "#f6f5f2",
@@ -31,7 +32,12 @@ const dark = {
 export const radius = 10;
 
 export function useTheme() {
-  const scheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  // useProfile() returns null when rendered outside a ProfileProvider (e.g. the
+  // login screen, before a user is signed in) — system scheme wins there.
+  const profileCtx = useProfile();
+  const preference = profileCtx?.profile?.theme || "system";
+  const scheme = preference === "system" ? systemScheme : preference;
   return scheme === "dark" ? dark : light;
 }
 

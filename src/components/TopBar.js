@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, Platform } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, Platform } from "react-native";
 import { useTheme, shadow } from "../theme";
 import { LinkButton, SecondaryButton } from "./Buttons";
 
 const logo = require("../../assets/icon.png");
 
-export default function TopBar({ title, showBack, onBack, userEmail, onSignOut }) {
+export default function TopBar({ title, showBack, onBack, onOpenAccount, onSignOut }) {
   const c = useTheme();
   return (
     <View style={[styles.bar, shadow(c, "sm"), { backgroundColor: c.cardBg, borderBottomColor: c.border }]}>
@@ -17,10 +17,17 @@ export default function TopBar({ title, showBack, onBack, userEmail, onSignOut }
         </Text>
       </View>
       <View style={styles.user}>
-        {userEmail ? (
-          <Text style={{ color: c.textDim, fontSize: 13 }} numberOfLines={1}>
-            {userEmail}
-          </Text>
+        {onOpenAccount ? (
+          <Pressable
+            onPress={onOpenAccount}
+            accessibilityLabel="Account"
+            style={({ hovered }) => [
+              styles.accountBtn,
+              { borderColor: c.border, backgroundColor: hovered ? c.accentSoft : "transparent" },
+            ]}
+          >
+            <Text style={{ fontSize: 15 }}>👤</Text>
+          </Pressable>
         ) : null}
         {onSignOut ? <SecondaryButton title="Sign Out" onPress={onSignOut} /> : null}
       </View>
@@ -62,5 +69,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  accountBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

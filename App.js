@@ -4,24 +4,33 @@ import { StatusBar } from "expo-status-bar";
 import { useTheme } from "./src/theme";
 import { AuthProvider, useAuth } from "./src/lib/auth";
 import { StoryProvider } from "./src/lib/storage";
+import { ProfileProvider } from "./src/lib/profile";
 import LoginScreen from "./src/screens/LoginScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import StoryWorkspaceScreen from "./src/screens/StoryWorkspaceScreen";
+import AccountScreen from "./src/screens/AccountScreen";
 import TopBar from "./src/components/TopBar";
 
-function MainApp({ userEmail, onSignOut }) {
+function MainApp({ onSignOut }) {
   const [storyId, setStoryId] = useState(null);
+  const [showAccount, setShowAccount] = useState(false);
+
+  const title = showAccount ? "Account" : "Pressroom";
+  const showBack = showAccount || !!storyId;
+  const onBack = showAccount ? () => setShowAccount(false) : () => setStoryId(null);
 
   return (
     <View style={styles.flex}>
       <TopBar
-        title="Pressroom"
-        showBack={!!storyId}
-        onBack={() => setStoryId(null)}
-        userEmail={userEmail}
+        title={title}
+        showBack={showBack}
+        onBack={onBack}
+        onOpenAccount={() => setShowAccount(true)}
         onSignOut={onSignOut}
       />
-      {storyId ? (
+      {showAccount ? (
+        <AccountScreen />
+      ) : storyId ? (
         <StoryWorkspaceScreen storyId={storyId} />
       ) : (
         <DashboardScreen onOpenStory={setStoryId} />
@@ -47,11 +56,12 @@ function AppShell() {
   }
 
   const uid = configured ? user.uid : "local";
-  const email = configured ? user.email || "" : "";
 
   return (
     <StoryProvider uid={uid}>
-      <MainApp userEmail={email} onSignOut={configured ? signOutUser : null} />
+      <ProfileProvider uid={uid}>
+        <MainApp onSignOut={configured ? signOutUser : null} />
+      </ProfileProvider>
     </StoryProvider>
   );
 }
