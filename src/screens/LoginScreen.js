@@ -12,7 +12,7 @@ function notify(message) {
 
 export default function LoginScreen() {
   const c = useTheme();
-  const { signInEmail, signUpEmail, signInGoogle, resetPassword } = useAuth();
+  const { signInEmail, signUpEmail, signInGoogle, resetPassword, configured } = useAuth();
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,8 +25,16 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      if (mode === "signup") await signUpEmail(email.trim(), password);
-      else await signInEmail(email.trim(), password);
+      if (mode === "signup") {
+        const result = await signUpEmail(email.trim(), password);
+        if (result?.needsConfirmation) {
+          notify("Almost there — check your email to confirm your account, then sign in.");
+          setMode("signin");
+          setPassword("");
+        }
+      } else {
+        await signInEmail(email.trim(), password);
+      }
     } catch (err) {
       notify(err.message);
     } finally {
@@ -126,10 +134,12 @@ export default function LoginScreen() {
           style={{ width: "100%", marginTop: 4 }}
         />
 
-        <Text style={[styles.setupNote, { color: c.textDim }]}>
-          First time here? Open src/lib/firebaseConfig.js and paste in your Firebase project's config values — sign-in won't work until
-          that's done.
-        </Text>
+        {!configured ? (
+          <Text style={[styles.setupNote, { color: c.textDim }]}>
+            First time here? Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to your .env file — sign-in won't work
+            until that's done.
+          </Text>
+        ) : null}
       </View>
     </ScrollView>
   );
