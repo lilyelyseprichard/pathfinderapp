@@ -24,6 +24,8 @@ export function normalizeStory(story) {
   story.quotes = story.quotes || [];
   story.board = story.board || [];
   story.draft = story.draft && Array.isArray(story.draft.blocks) ? story.draft : { blocks: [] };
+  story.locked = story.locked || false;
+  story.passwordHash = story.passwordHash || null;
   return story;
 }
 

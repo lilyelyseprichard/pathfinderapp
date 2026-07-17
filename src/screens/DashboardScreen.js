@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator } from
 import { useTheme, shadow } from "../theme";
 import { useStories } from "../lib/storage";
 import { notify, confirmDialog } from "../lib/notify";
+import { hashPassword } from "../lib/lock";
 import { PrimaryButton, SecondaryButton, LinkButton } from "../components/Buttons";
 import { TextField, ChipSelect } from "../components/Field";
 import { EmptyState } from "../components/Misc";
@@ -10,7 +11,7 @@ import ModalBox, { ModalActions } from "../components/Modal";
 
 const STAGES = ["Research", "Interviewing", "Drafting", "Editing", "Published"];
 
-function StoryCard({ story, onPress, onDelete }) {
+function StoryCard({ story, onPress, onDelete, onLockToggle }) {
   const c = useTheme();
   const count = story.sources.length;
   return (
@@ -23,15 +24,26 @@ function StoryCard({ story, onPress, onDelete }) {
       ]}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.emoji}>{story.emoji}</Text>
-        <LinkButton
-          title="Delete"
-          onPress={(e) => {
-            e?.stopPropagation?.();
-            onDelete();
-          }}
-          danger
-        />
+        <Text style={styles.emoji}>
+          {story.locked ? "🔒" : story.emoji}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <LinkButton
+            title={story.locked ? "Unlock" : "Lock"}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onLockToggle();
+            }}
+          />
+          <LinkButton
+            title="Delete"
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onDelete();
+            }}
+            danger
+          />
+        </View>
       </View>
       <Text style={[styles.cardTitle, { color: c.text }]} numberOfLines={2}>
         {story.title}
@@ -40,7 +52,7 @@ function StoryCard({ story, onPress, onDelete }) {
         <Text style={{ color: c.accent, fontSize: 12 }}>{story.stage}</Text>
       </View>
       <Text style={{ color: c.textDim, fontSize: 13 }}>
-        {count} source{count === 1 ? "" : "s"}
+        {story.locked ? "Password protected" : `${count} source${count === 1 ? "" : "s"}`}
       </Text>
     </Pressable>
   );
@@ -48,15 +60,82 @@ function StoryCard({ story, onPress, onDelete }) {
 
 export default function DashboardScreen({ onOpenStory }) {
   const c = useTheme();
-  const { stories, addStory, deleteStory, loaded } = useStories();
+  const { stories, addStory, deleteStory, mutateStory, loaded } = useStories();
   const [visible, setVisible] = useState(false);
   const [emoji, setEmoji] = useState("📰");
   const [title, setTitle] = useState("");
   const [stage, setStage] = useState("Research");
 
+  const [passwordModal, setPasswordModal] = useState(null); // { mode: "set" | "remove" | "access", story }
+  const [pw1, setPw1] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [unlockedIds, setUnlockedIds] = useState(() => new Set());
+
   async function handleDelete(story) {
     if (!(await confirmDialog(`Delete "${story.title}"? This can't be undone.`))) return;
     deleteStory(story.id);
+  }
+
+  function openPasswordModal(mode, story) {
+    setPw1("");
+    setPw2("");
+    setPwError("");
+    setPasswordModal({ mode, story });
+  }
+
+  function handleOpenStory(story) {
+    if (!story.locked || unlockedIds.has(story.id)) {
+      onOpenStory(story.id);
+      return;
+    }
+    openPasswordModal("access", story);
+  }
+
+  function handleLockToggle(story) {
+    openPasswordModal(story.locked ? "remove" : "set", story);
+  }
+
+  async function submitPasswordModal() {
+    const { mode, story } = passwordModal;
+
+    if (mode === "set") {
+      if (!pw1) {
+        setPwError("Enter a password.");
+        return;
+      }
+      if (pw1 !== pw2) {
+        setPwError("Passwords don't match.");
+        return;
+      }
+      const passwordHash = await hashPassword(pw1);
+      mutateStory(story.id, (s) => {
+        s.locked = true;
+        s.passwordHash = passwordHash;
+      });
+      setPasswordModal(null);
+      return;
+    }
+
+    if (!pw1) {
+      setPwError("Enter the password.");
+      return;
+    }
+    const attemptHash = await hashPassword(pw1);
+    if (attemptHash !== story.passwordHash) {
+      setPwError("Incorrect password.");
+      return;
+    }
+    if (mode === "remove") {
+      mutateStory(story.id, (s) => {
+        s.locked = false;
+        s.passwordHash = null;
+      });
+    } else {
+      setUnlockedIds((prev) => new Set(prev).add(story.id));
+      onOpenStory(story.id);
+    }
+    setPasswordModal(null);
   }
 
   function openModal() {
@@ -95,7 +174,13 @@ export default function DashboardScreen({ onOpenStory }) {
       ) : (
         <View style={styles.grid}>
           {stories.map((s) => (
-            <StoryCard key={s.id} story={s} onPress={() => onOpenStory(s.id)} onDelete={() => handleDelete(s)} />
+            <StoryCard
+              key={s.id}
+              story={s}
+              onPress={() => handleOpenStory(s)}
+              onDelete={() => handleDelete(s)}
+              onLockToggle={() => handleLockToggle(s)}
+            />
           ))}
         </View>
       )}
@@ -107,6 +192,60 @@ export default function DashboardScreen({ onOpenStory }) {
         <ModalActions>
           <SecondaryButton title="Cancel" onPress={() => setVisible(false)} />
           <PrimaryButton title="Create Story" onPress={save} />
+        </ModalActions>
+      </ModalBox>
+
+      <ModalBox
+        visible={!!passwordModal}
+        onClose={() => setPasswordModal(null)}
+        title={
+          passwordModal?.mode === "set"
+            ? "Lock Story"
+            : passwordModal?.mode === "remove"
+            ? "Remove Lock"
+            : "Enter Password"
+        }
+      >
+        {passwordModal?.mode === "set" ? (
+          <Text style={{ color: c.textDim, fontSize: 13, marginBottom: 14 }}>
+            Set a password for "{passwordModal.story.title}". You'll need it to open this story again.
+          </Text>
+        ) : (
+          <Text style={{ color: c.textDim, fontSize: 13, marginBottom: 14 }}>
+            {passwordModal?.mode === "remove"
+              ? `Enter the password for "${passwordModal?.story.title}" to remove its lock.`
+              : `"${passwordModal?.story.title}" is locked. Enter the password to open it.`}
+          </Text>
+        )}
+        <TextField
+          label="Password"
+          value={pw1}
+          onChangeText={(v) => {
+            setPw1(v);
+            setPwError("");
+          }}
+          placeholder="Password"
+          secureTextEntry
+        />
+        {passwordModal?.mode === "set" ? (
+          <TextField
+            label="Confirm Password"
+            value={pw2}
+            onChangeText={(v) => {
+              setPw2(v);
+              setPwError("");
+            }}
+            placeholder="Confirm password"
+            secureTextEntry
+          />
+        ) : null}
+        {pwError ? <Text style={{ color: c.danger, fontSize: 13, marginBottom: 4 }}>{pwError}</Text> : null}
+        <ModalActions>
+          <SecondaryButton title="Cancel" onPress={() => setPasswordModal(null)} />
+          <PrimaryButton
+            title={passwordModal?.mode === "set" ? "Lock Story" : passwordModal?.mode === "remove" ? "Remove Lock" : "Unlock"}
+            onPress={submitPasswordModal}
+          />
         </ModalActions>
       </ModalBox>
     </ScrollView>
