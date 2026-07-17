@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import { useTheme, shadow } from "../theme";
 import { useStories } from "../lib/storage";
-import { notify } from "../lib/notify";
-import { PrimaryButton, SecondaryButton } from "../components/Buttons";
+import { notify, confirmDialog } from "../lib/notify";
+import { PrimaryButton, SecondaryButton, LinkButton } from "../components/Buttons";
 import { TextField, ChipSelect } from "../components/Field";
 import { EmptyState } from "../components/Misc";
 import ModalBox, { ModalActions } from "../components/Modal";
 
 const STAGES = ["Research", "Interviewing", "Drafting", "Editing", "Published"];
 
-function StoryCard({ story, onPress }) {
+function StoryCard({ story, onPress, onDelete }) {
   const c = useTheme();
   const count = story.sources.length;
   return (
@@ -22,7 +22,17 @@ function StoryCard({ story, onPress }) {
         { backgroundColor: c.cardBg, borderColor: hovered ? c.accent : c.border },
       ]}
     >
-      <Text style={styles.emoji}>{story.emoji}</Text>
+      <View style={styles.cardHeader}>
+        <Text style={styles.emoji}>{story.emoji}</Text>
+        <LinkButton
+          title="Delete"
+          onPress={(e) => {
+            e?.stopPropagation?.();
+            onDelete();
+          }}
+          danger
+        />
+      </View>
       <Text style={[styles.cardTitle, { color: c.text }]} numberOfLines={2}>
         {story.title}
       </Text>
@@ -38,11 +48,16 @@ function StoryCard({ story, onPress }) {
 
 export default function DashboardScreen({ onOpenStory }) {
   const c = useTheme();
-  const { stories, addStory, loaded } = useStories();
+  const { stories, addStory, deleteStory, loaded } = useStories();
   const [visible, setVisible] = useState(false);
   const [emoji, setEmoji] = useState("📰");
   const [title, setTitle] = useState("");
   const [stage, setStage] = useState("Research");
+
+  async function handleDelete(story) {
+    if (!(await confirmDialog(`Delete "${story.title}"? This can't be undone.`))) return;
+    deleteStory(story.id);
+  }
 
   function openModal() {
     setEmoji("📰");
@@ -80,7 +95,7 @@ export default function DashboardScreen({ onOpenStory }) {
       ) : (
         <View style={styles.grid}>
           {stories.map((s) => (
-            <StoryCard key={s.id} story={s} onPress={() => onOpenStory(s.id)} />
+            <StoryCard key={s.id} story={s} onPress={() => onOpenStory(s.id)} onDelete={() => handleDelete(s)} />
           ))}
         </View>
       )}
@@ -134,6 +149,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     padding: 18,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   emoji: {
     fontSize: 26,

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { uuid } from "./id";
-import { setFileStoreUser } from "./fileStore";
+import { setFileStoreUser, remove as removeFile } from "./fileStore";
 import { supabase, supabaseConfigured } from "./supabase";
 
 const StoryContext = createContext(null);
@@ -212,8 +212,31 @@ export function StoryProvider({ uid, children }) {
 
   const getStory = useCallback((id) => stories.find((s) => s.id === id), [stories]);
 
+  const deleteStory = useCallback(
+    (storyId) => {
+      const story = stories.find((s) => s.id === storyId);
+      setStories((prev) => prev.filter((s) => s.id !== storyId));
+      if (story) {
+        story.documents.forEach((d) => removeFile(d.fileId).catch(() => {}));
+        story.interviews.forEach((i) => {
+          if (i.recordingId) removeFile(i.recordingId).catch(() => {});
+        });
+      }
+      if (supabaseConfigured) {
+        supabase
+          .from("stories")
+          .delete()
+          .eq("id", storyId)
+          .then(({ error }) => {
+            if (error) console.error("Failed to delete story from Supabase:", error.message);
+          });
+      }
+    },
+    [stories]
+  );
+
   return (
-    <StoryContext.Provider value={{ stories, loaded, addStory, mutateStory, getStory }}>
+    <StoryContext.Provider value={{ stories, loaded, addStory, mutateStory, getStory, deleteStory }}>
       {children}
     </StoryContext.Provider>
   );
