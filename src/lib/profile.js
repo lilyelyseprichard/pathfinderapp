@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, supabaseConfigured } from "./supabase";
+import { notify } from "./notify";
 
 const ProfileContext = createContext(null);
 
@@ -73,16 +74,24 @@ export function ProfileProvider({ uid, children }) {
   }, [uid]);
 
   // patch is a partial profile object (e.g. { theme: "dark" } or { firstName, lastName }).
+  // Pass { persist: false } for high-frequency updates (e.g. every frame of a
+  // color-wheel drag) that should update the live theme immediately without
+  // firing a network/storage write on every call — call again with persist
+  // (the default) once, when the drag ends, to actually save the result.
   const updateProfile = useCallback(
-    (patch) => {
+    (patch, { persist = true } = {}) => {
       setProfile((prev) => {
         const next = { ...prev, ...patch };
+        if (!persist) return next;
         if (supabaseConfigured) {
           supabase
             .from("profiles")
             .upsert(toDbRow(uid, next))
             .then(({ error }) => {
-              if (error) console.error("Failed to save profile to Supabase:", error.message);
+              if (error) {
+                console.error("Failed to save profile to Supabase:", error.message);
+                notify("Couldn't save that setting: " + error.message);
+              }
             });
         } else {
           AsyncStorage.setItem(keyRef.current, JSON.stringify(next));

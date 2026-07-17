@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { View, Text, PanResponder, Platform, StyleSheet } from "react-native";
 import { useTheme } from "../theme";
 import { hexToHsl, hslToHex } from "../lib/color";
@@ -25,45 +25,49 @@ function polarToHueSat(x, y) {
 // arbitrary CSS through `style`, same trick as shadow() in theme.js). Native
 // has no gradient primitive without adding a dependency, so it falls back to
 // hue/saturation bars — same underlying math, just rendered as sliders.
-export default function ColorWheel({ value, onChange }) {
+//
+// `onChange` fires on every drag frame for instant visual feedback (cheap,
+// local-only). `onCommit` fires once, when the drag ends, with the final
+// color — that's the only point a save is actually triggered, so a fast drag
+// can't fire a flood of concurrent, out-of-order saves that race each other
+// and leave a stale color persisted.
+export default function ColorWheel({ value, onChange, onCommit }) {
   const c = useTheme();
   const { h, s, l } = hexToHsl(value || "#7c2140");
+  const pendingRef = useRef(value);
 
-  const wheelResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (evt) => {
-      const { h: newH, s: newS } = polarToHueSat(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
-      onChange(hslToHex(newH, newS, l));
-    },
-    onPanResponderMove: (evt) => {
-      const { h: newH, s: newS } = polarToHueSat(evt.nativeEvent.locationX, evt.nativeEvent.locationY);
-      onChange(hslToHex(newH, newS, l));
-    },
-  });
-
-  function makeBarResponder(barWidth, onDrag) {
+  function makeResponder(onDrag) {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (evt) => onDrag(evt.nativeEvent.locationX, barWidth),
-      onPanResponderMove: (evt) => onDrag(evt.nativeEvent.locationX, barWidth),
+      onPanResponderGrant: (evt) => onDrag(evt.nativeEvent.locationX, evt.nativeEvent.locationY),
+      onPanResponderMove: (evt) => onDrag(evt.nativeEvent.locationX, evt.nativeEvent.locationY),
+      onPanResponderRelease: () => onCommit(pendingRef.current),
+      onPanResponderTerminate: () => onCommit(pendingRef.current),
     });
   }
 
-  const hueResponder = makeBarResponder(WHEEL_SIZE, (x, w) => {
-    const newH = (Math.min(Math.max(x, 0), w) / w) * 360;
-    onChange(hslToHex(newH, s, l));
+  function apply(hex) {
+    pendingRef.current = hex;
+    onChange(hex);
+  }
+
+  const wheelResponder = makeResponder((x, y) => {
+    const { h: newH, s: newS } = polarToHueSat(x, y);
+    apply(hslToHex(newH, newS, l));
   });
-  const satResponder = makeBarResponder(WHEEL_SIZE, (x, w) => {
-    const newS = (Math.min(Math.max(x, 0), w) / w) * 100;
-    onChange(hslToHex(h, newS, l));
+  const hueResponder = makeResponder((x) => {
+    const newH = (Math.min(Math.max(x, 0), WHEEL_SIZE) / WHEEL_SIZE) * 360;
+    apply(hslToHex(newH, s, l));
   });
-  const lightResponder = makeBarResponder(WHEEL_SIZE, (x, w) => {
-    const newL = (Math.min(Math.max(x, 0), w) / w) * 100;
-    onChange(hslToHex(h, s, newL));
+  const satResponder = makeResponder((x) => {
+    const newS = (Math.min(Math.max(x, 0), WHEEL_SIZE) / WHEEL_SIZE) * 100;
+    apply(hslToHex(h, newS, l));
+  });
+  const lightResponder = makeResponder((x) => {
+    const newL = (Math.min(Math.max(x, 0), WHEEL_SIZE) / WHEEL_SIZE) * 100;
+    apply(hslToHex(h, s, newL));
   });
 
   const dotAngle = (h * Math.PI) / 180;

@@ -85,7 +85,11 @@ export default function AccountScreen() {
         </View>
 
         {customSelected ? (
-          <ColorWheel value={resolveAccentBase(accent)} onChange={(hex) => updateProfile({ accent: hex })} />
+          <ColorWheel
+            value={resolveAccentBase(accent)}
+            onChange={(hex) => updateProfile({ accent: hex }, { persist: false })}
+            onCommit={(hex) => updateProfile({ accent: hex })}
+          />
         ) : null}
       </View>
     </ScrollView>
