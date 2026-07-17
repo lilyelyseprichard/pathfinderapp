@@ -7,7 +7,7 @@ import { useAuth } from "../lib/auth";
 
 function notify(message) {
   if (Platform.OS === "web") window.alert(message);
-  else Alert.alert("Notebook", message);
+  else Alert.alert("Pressroom", message);
 }
 
 export default function LoginScreen() {
@@ -58,7 +58,7 @@ export default function LoginScreen() {
   return (
     <ScrollView contentContainerStyle={[styles.body, { backgroundColor: c.bg }]} keyboardShouldPersistTaps="handled">
       <View style={[styles.card, shadow(c, "lg"), { backgroundColor: c.cardBg, borderColor: c.border }]}>
-        <Text style={[styles.logo, { color: c.text }]}>📓 Notebook</Text>
+        <Text style={[styles.logo, { color: c.text }]}>📓 Pressroom</Text>
 
         <View style={[styles.modeToggle, { backgroundColor: c.bg, borderColor: c.border }]}>
           <Pressable
