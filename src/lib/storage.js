@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { uuid } from "./id";
 import { setFileStoreUser } from "./fileStore";
+import { supabase, supabaseConfigured } from "./supabase";
 
 const StoryContext = createContext(null);
 
@@ -98,6 +99,22 @@ function sampleStories() {
   return [s1, s2];
 }
 
+// The `stories` table stores everything except `id` inside a jsonb `data`
+// column — the row's own id is the source of truth, so it isn't duplicated.
+function toDbData(story) {
+  const { id, ...rest } = story;
+  return rest;
+}
+
+function fromDbRow(row) {
+  return normalizeStory({ id: row.id, ...row.data });
+}
+
+async function persistNewStory(uid, story) {
+  const { error } = await supabase.from("stories").insert({ id: story.id, user_id: uid, data: toDbData(story) });
+  if (error) console.error("Failed to save new story to Supabase:", error.message);
+}
+
 export function StoryProvider({ uid, children }) {
   const [stories, setStories] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -108,7 +125,35 @@ export function StoryProvider({ uid, children }) {
     setFileStoreUser(uid);
     let cancelled = false;
     setLoaded(false);
+
     (async () => {
+      if (supabaseConfigured) {
+        const { data, error } = await supabase
+          .from("stories")
+          .select("id, data")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: true });
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Failed to load stories from Supabase:", error.message);
+          setStories([]);
+          setLoaded(true);
+          return;
+        }
+
+        if (data.length === 0) {
+          const sample = sampleStories().map(normalizeStory);
+          setStories(sample);
+          await Promise.all(sample.map((s) => persistNewStory(uid, s)));
+        } else {
+          setStories(data.map(fromDbRow));
+        }
+        if (!cancelled) setLoaded(true);
+        return;
+      }
+
+      // Local-only fallback when Supabase isn't configured.
       const raw = await AsyncStorage.getItem(keyRef.current);
       if (cancelled) return;
       if (raw) {
@@ -121,21 +166,28 @@ export function StoryProvider({ uid, children }) {
       }
       if (!cancelled) setLoaded(true);
     })();
+
     return () => {
       cancelled = true;
     };
   }, [uid]);
 
+  // Local-only persistence effect — when Supabase is configured, writes
+  // happen per-mutation instead (see addStory/mutateStory below).
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || supabaseConfigured) return;
     AsyncStorage.setItem(keyRef.current, JSON.stringify({ stories }));
   }, [stories, loaded]);
 
-  const addStory = useCallback((data) => {
-    const story = normalizeStory({ id: uuid(), ...data });
-    setStories((prev) => [...prev, story]);
-    return story.id;
-  }, []);
+  const addStory = useCallback(
+    (data) => {
+      const story = normalizeStory({ id: uuid(), ...data });
+      setStories((prev) => [...prev, story]);
+      if (supabaseConfigured) persistNewStory(uid, story);
+      return story.id;
+    },
+    [uid]
+  );
 
   // updater receives a deep-cloned, mutable draft of the story and mutates it in place.
   const mutateStory = useCallback((storyId, updater) => {
@@ -144,6 +196,15 @@ export function StoryProvider({ uid, children }) {
         if (s.id !== storyId) return s;
         const clone = JSON.parse(JSON.stringify(s));
         updater(clone);
+        if (supabaseConfigured) {
+          supabase
+            .from("stories")
+            .update({ data: toDbData(clone), updated_at: new Date().toISOString() })
+            .eq("id", storyId)
+            .then(({ error }) => {
+              if (error) console.error("Failed to save story to Supabase:", error.message);
+            });
+        }
         return clone;
       })
     );

@@ -1,3 +1,6 @@
+import { supabaseConfigured } from "./supabase";
+import * as supabaseFileStore from "./supabaseFileStore";
+
 const DB_PREFIX = "notebook-files-";
 let dbPromise = null;
 let currentUid = "local";
@@ -22,9 +25,10 @@ export function setFileStoreUser(uid) {
     currentUid = next;
     dbPromise = null;
   }
+  supabaseFileStore.setSupabaseFileStoreUser(uid);
 }
 
-export async function putFromUri(id, uri) {
+async function localPutFromUri(id, uri) {
   const res = await fetch(uri);
   const blob = await res.blob();
   const db = await openDb();
@@ -36,7 +40,7 @@ export async function putFromUri(id, uri) {
   });
 }
 
-export async function getUri(id) {
+async function localGetUri(id) {
   const db = await openDb();
   const blob = await new Promise((resolve, reject) => {
     const tx = db.transaction("blobs", "readonly");
@@ -48,7 +52,7 @@ export async function getUri(id) {
   return URL.createObjectURL(blob);
 }
 
-export async function remove(id) {
+async function localRemove(id) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("blobs", "readwrite");
@@ -56,4 +60,18 @@ export async function remove(id) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+// Files live in Supabase Storage once the project is configured; IndexedDB is
+// only the fallback for running the app without Supabase credentials set.
+export async function putFromUri(id, uri) {
+  return supabaseConfigured ? supabaseFileStore.putFromUri(id, uri) : localPutFromUri(id, uri);
+}
+
+export async function getUri(id) {
+  return supabaseConfigured ? supabaseFileStore.getUri(id) : localGetUri(id);
+}
+
+export async function remove(id) {
+  return supabaseConfigured ? supabaseFileStore.remove(id) : localRemove(id);
 }
