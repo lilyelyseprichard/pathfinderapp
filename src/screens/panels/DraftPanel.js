@@ -3,9 +3,10 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useTheme, shadow } from "../../theme";
 import { uuid } from "../../lib/id";
 import { notify } from "../../lib/notify";
+import { googleDocsConfigured, exportStoryToGoogleDoc } from "../../lib/googleDocs";
 import { PrimaryButton, SecondaryButton, LinkButton } from "../../components/Buttons";
 import { TextField } from "../../components/Field";
-import { EmptyState, HintBox } from "../../components/Misc";
+import { EmptyState, HintBox, SectionHeader } from "../../components/Misc";
 import ModalBox, { ModalActions } from "../../components/Modal";
 
 function iconForEvidenceType(type) {
@@ -19,6 +20,20 @@ export default function DraftPanel({ story, update, setTab }) {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerBlockId, setPickerBlockId] = useState(null);
   const [checked, setChecked] = useState({});
+  const [exporting, setExporting] = useState(false);
+
+  async function exportToGoogleDocs() {
+    setExporting(true);
+    try {
+      const { url } = await exportStoryToGoogleDoc(story);
+      notify("Exported to Google Docs.");
+      window.open(url, "_blank");
+    } catch (err) {
+      notify("Couldn't export to Google Docs: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function addBlock() {
     update((s) => {
@@ -93,6 +108,24 @@ export default function DraftPanel({ story, update, setTab }) {
 
   return (
     <View>
+      {googleDocsConfigured ? (
+        <SectionHeader
+          label="Export"
+          action={
+            <SecondaryButton
+              title={exporting ? "Exporting…" : "📄 Export to Google Docs"}
+              onPress={exportToGoogleDocs}
+              disabled={exporting || story.draft.blocks.length === 0}
+            />
+          }
+        />
+      ) : (
+        <HintBox>
+          Google Docs export is off. Create an OAuth client at console.cloud.google.com and add
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID to your .env to enable it.
+        </HintBox>
+      )}
+
       {story.draft.blocks.length === 0 ? (
         <EmptyState>No paragraphs yet. Add one to start drafting.</EmptyState>
       ) : (
