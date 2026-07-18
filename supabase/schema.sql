@@ -1,6 +1,14 @@
 -- Pressroom: Supabase schema for story data + file storage.
 -- Run this once in your Supabase project's SQL Editor (Database > SQL Editor).
 -- Safe to re-run: every statement is idempotent.
+--
+-- One setting can't be expressed here because it isn't part of the database
+-- at all — it's Auth *service* config, toggled in the dashboard (or via the
+-- Management API), not SQL:
+--   Authentication > Providers > Email > "Leaked password protection"
+--   (https://supabase.com/dashboard/project/wyznnzgewwhdhgvzdhpb/auth/providers)
+-- Turn this on. It rejects signups/password changes whose password appears
+-- in the HaveIBeenPwned Pwned Passwords breach corpus.
 
 -- Each story is stored as a single JSONB document, scoped by Row Level
 -- Security to the signed-in user. This mirrors the exact shape the app
