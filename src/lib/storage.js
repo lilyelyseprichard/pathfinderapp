@@ -26,6 +26,7 @@ export function normalizeStory(story) {
   story.draft = story.draft && Array.isArray(story.draft.blocks) ? story.draft : { blocks: [] };
   story.locked = story.locked || false;
   story.passwordHash = story.passwordHash || null;
+  story.published = story.published || false;
   return story;
 }
 
@@ -34,7 +35,6 @@ function sampleStories() {
     id: uuid(),
     emoji: "📰",
     title: "City Council Budget Investigation",
-    stage: "Drafting",
     sources: [
       {
         id: uuid(),
@@ -88,7 +88,6 @@ function sampleStories() {
     id: uuid(),
     emoji: "🌎",
     title: "Wildfire Recovery Feature",
-    stage: "Research",
     sources: [],
     interviews: [],
     documents: [],

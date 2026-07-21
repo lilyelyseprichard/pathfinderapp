@@ -2,6 +2,9 @@ import React, { useState, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "../theme";
 import { useStories } from "../lib/storage";
+import { computeStage } from "../lib/stage";
+import { confirmDialog } from "../lib/notify";
+import { LinkButton } from "../components/Buttons";
 
 import SourcesPanel from "./panels/SourcesPanel";
 import InterviewsPanel from "./panels/InterviewsPanel";
@@ -20,6 +23,20 @@ export default function StoryWorkspaceScreen({ storyId }) {
   const [tab, setTab] = useState("Sources");
 
   const update = useCallback((fn) => mutateStory(storyId, fn), [mutateStory, storyId]);
+
+  async function togglePublished() {
+    if (!story.published) {
+      if (!(await confirmDialog(`Mark "${story.title}" as published? This is the one thing Pressroom can't detect on its own.`))) return;
+      update((s) => {
+        s.published = true;
+      });
+      return;
+    }
+    if (!(await confirmDialog("Unpublish this story? Its stage will go back to tracking your progress automatically."))) return;
+    update((s) => {
+      s.published = false;
+    });
+  }
 
   if (!story) {
     return (
@@ -62,8 +79,11 @@ export default function StoryWorkspaceScreen({ storyId }) {
         <Text style={styles.emoji}>{story.emoji}</Text>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: c.text }]}>{story.title}</Text>
-          <View style={[styles.stagePill, { backgroundColor: c.accentSoft }]}>
-            <Text style={{ color: c.accent, fontSize: 12 }}>{story.stage}</Text>
+          <View style={styles.stageRow}>
+            <View style={[styles.stagePill, { backgroundColor: c.accentSoft }]}>
+              <Text style={{ color: c.accent, fontSize: 12 }}>{computeStage(story)}</Text>
+            </View>
+            <LinkButton title={story.published ? "Unpublish" : "Mark as Published"} onPress={togglePublished} />
           </View>
         </View>
       </View>
@@ -102,6 +122,11 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 34 },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 6 },
+  stageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
   stagePill: {
     alignSelf: "flex-start",
     paddingVertical: 2,

@@ -4,12 +4,11 @@ import { useTheme, shadow } from "../theme";
 import { useStories } from "../lib/storage";
 import { notify, confirmDialog } from "../lib/notify";
 import { hashPassword } from "../lib/lock";
+import { computeStage } from "../lib/stage";
 import { PrimaryButton, SecondaryButton, LinkButton } from "../components/Buttons";
-import { TextField, ChipSelect } from "../components/Field";
-import { EmptyState } from "../components/Misc";
+import { TextField } from "../components/Field";
+import { EmptyState, HintBox } from "../components/Misc";
 import ModalBox, { ModalActions } from "../components/Modal";
-
-const STAGES = ["Research", "Interviewing", "Drafting", "Editing", "Published"];
 
 function StoryCard({ story, onPress, onDelete, onLockToggle }) {
   const c = useTheme();
@@ -49,7 +48,7 @@ function StoryCard({ story, onPress, onDelete, onLockToggle }) {
         {story.title}
       </Text>
       <View style={[styles.stagePill, { backgroundColor: c.accentSoft }]}>
-        <Text style={{ color: c.accent, fontSize: 12 }}>{story.stage}</Text>
+        <Text style={{ color: c.accent, fontSize: 12 }}>{computeStage(story)}</Text>
       </View>
       <Text style={{ color: c.textDim, fontSize: 13 }}>
         {story.locked ? "Password protected" : `${count} source${count === 1 ? "" : "s"}`}
@@ -64,7 +63,6 @@ export default function DashboardScreen({ onOpenStory }) {
   const [visible, setVisible] = useState(false);
   const [emoji, setEmoji] = useState("📰");
   const [title, setTitle] = useState("");
-  const [stage, setStage] = useState("Research");
 
   const [passwordModal, setPasswordModal] = useState(null); // { mode: "set" | "remove" | "access", story }
   const [pw1, setPw1] = useState("");
@@ -141,7 +139,6 @@ export default function DashboardScreen({ onOpenStory }) {
   function openModal() {
     setEmoji("📰");
     setTitle("");
-    setStage("Research");
     setVisible(true);
   }
 
@@ -150,7 +147,7 @@ export default function DashboardScreen({ onOpenStory }) {
       notify("Give your story a title first.");
       return;
     }
-    addStory({ emoji: emoji.trim() || "📰", title: title.trim(), stage });
+    addStory({ emoji: emoji.trim() || "📰", title: title.trim() });
     setVisible(false);
   }
 
@@ -188,7 +185,7 @@ export default function DashboardScreen({ onOpenStory }) {
       <ModalBox visible={visible} onClose={() => setVisible(false)} title="New Story">
         <TextField label="Emoji" value={emoji} onChangeText={setEmoji} placeholder="📰" />
         <TextField label="Title" value={title} onChangeText={setTitle} placeholder="e.g. City Council Budget Investigation" />
-        <ChipSelect label="Stage" value={stage} onChange={setStage} options={STAGES} />
+        <HintBox>Stage isn't set by hand — it updates on its own as you add interviews, drafting, and citations.</HintBox>
         <ModalActions>
           <SecondaryButton title="Cancel" onPress={() => setVisible(false)} />
           <PrimaryButton title="Create Story" onPress={save} />
