@@ -4,8 +4,9 @@ import { useTheme, shadow } from "../../theme";
 import { uuid } from "../../lib/id";
 import { notify } from "../../lib/notify";
 import { googleDocsConfigured, exportStoryToGoogleDoc } from "../../lib/googleDocs";
+import { FONTS, fontFamilyFor } from "../../lib/fonts";
 import { PrimaryButton, SecondaryButton, LinkButton } from "../../components/Buttons";
-import { TextField } from "../../components/Field";
+import { TextField, ChipSelect } from "../../components/Field";
 import { EmptyState, HintBox, SectionHeader } from "../../components/Misc";
 import ModalBox, { ModalActions } from "../../components/Modal";
 
@@ -13,7 +14,14 @@ function iconForEvidenceType(type) {
   return { source: "👤", document: "📎", quote: "💬", timeline: "📅" }[type] || "🔗";
 }
 
+function wordCount(text) {
+  const trimmed = (text || "").trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
 const TAB_FOR_TYPE = { source: "Sources", document: "Evidence Locker", quote: "Quote Bank", timeline: "Timeline" };
+
+const FONT_OPTIONS = FONTS.map((f) => ({ value: f.key, label: f.label }));
 
 export default function DraftPanel({ story, update, setTab }) {
   const c = useTheme();
@@ -37,13 +45,26 @@ export default function DraftPanel({ story, update, setTab }) {
 
   function addBlock() {
     update((s) => {
-      s.draft.blocks.push({ id: uuid(), text: "", links: [] });
+      s.draft.blocks.push({ id: uuid(), text: "", links: [], bold: false, italic: false, underline: false, indent: false });
     });
   }
 
   function setBlockText(blockId, text) {
     update((s) => {
       s.draft.blocks.find((b) => b.id === blockId).text = text;
+    });
+  }
+
+  function toggleFormat(blockId, field) {
+    update((s) => {
+      const block = s.draft.blocks.find((b) => b.id === blockId);
+      block[field] = !block[field];
+    });
+  }
+
+  function setFont(font) {
+    update((s) => {
+      s.draft.font = font;
     });
   }
 
@@ -106,6 +127,8 @@ export default function DraftPanel({ story, update, setTab }) {
   if (story.timeline.length)
     sections.push({ title: "Timeline", items: story.timeline.map((e) => ({ type: "timeline", id: e.id, label: `${e.date}: ${e.title}` })) });
 
+  const totalWords = story.draft.blocks.reduce((sum, b) => sum + wordCount(b.text), 0);
+
   return (
     <View>
       {googleDocsConfigured ? (
@@ -126,12 +149,38 @@ export default function DraftPanel({ story, update, setTab }) {
         </HintBox>
       )}
 
+      <View style={styles.draftHeader}>
+        <ChipSelect label="Font" value={story.draft.font} onChange={setFont} options={FONT_OPTIONS} style={{ marginBottom: 0 }} />
+        <Text style={{ color: c.textDim, fontSize: 13 }}>
+          {totalWords} word{totalWords === 1 ? "" : "s"}
+        </Text>
+      </View>
+
       {story.draft.blocks.length === 0 ? (
         <EmptyState>No paragraphs yet. Add one to start drafting.</EmptyState>
       ) : (
         story.draft.blocks.map((block) => (
           <View key={block.id} style={[styles.block, shadow(c, "sm"), { backgroundColor: c.cardBg, borderColor: c.border }]}>
-            <TextField value={block.text} onChangeText={(t) => setBlockText(block.id, t)} multiline placeholder="Write a paragraph..." />
+            <View style={styles.formatRow}>
+              <FormatToggle label="B" active={block.bold} weight="700" onPress={() => toggleFormat(block.id, "bold")} c={c} />
+              <FormatToggle label="I" active={block.italic} italic onPress={() => toggleFormat(block.id, "italic")} c={c} />
+              <FormatToggle label="U" active={block.underline} underline onPress={() => toggleFormat(block.id, "underline")} c={c} />
+              <FormatToggle label="⇥¶" active={block.indent} onPress={() => toggleFormat(block.id, "indent")} c={c} />
+              <Text style={[styles.blockWordCount, { color: c.textDim }]}>{wordCount(block.text)} words</Text>
+            </View>
+            <TextField
+              value={block.text}
+              onChangeText={(t) => setBlockText(block.id, t)}
+              multiline
+              placeholder="Write a paragraph..."
+              inputStyle={{
+                fontFamily: fontFamilyFor(story.draft.font),
+                fontWeight: block.bold ? "700" : "400",
+                fontStyle: block.italic ? "italic" : "normal",
+                textDecorationLine: block.underline ? "underline" : "none",
+                textIndent: block.indent ? 28 : 0,
+              }}
+            />
             {block.links.length > 0 ? (
               <View style={styles.chipRow}>
                 {block.links.map((l, i) => (
@@ -184,7 +233,57 @@ export default function DraftPanel({ story, update, setTab }) {
   );
 }
 
+function FormatToggle({ label, active, onPress, c, weight, italic, underline }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.formatBtn,
+        { borderColor: active ? c.accent : c.border, backgroundColor: active ? c.accentSoft : "transparent" },
+      ]}
+    >
+      <Text
+        style={{
+          color: active ? c.accent : c.textDim,
+          fontSize: 13,
+          fontWeight: weight || "600",
+          fontStyle: italic ? "italic" : "normal",
+          textDecorationLine: underline ? "underline" : "none",
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  draftHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  formatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  formatBtn: {
+    minWidth: 30,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: "center",
+  },
+  blockWordCount: {
+    marginLeft: "auto",
+    fontSize: 12,
+  },
   block: {
     borderWidth: 1,
     borderRadius: 10,

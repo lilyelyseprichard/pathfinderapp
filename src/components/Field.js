@@ -7,7 +7,18 @@ export function FieldLabel({ children }) {
   return <Text style={[styles.label, { color: c.textDim }]}>{children}</Text>;
 }
 
-export function TextField({ label, value, onChangeText, placeholder, multiline, style, keyboardType, autoCapitalize, secureTextEntry }) {
+export function TextField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  multiline,
+  style,
+  inputStyle,
+  keyboardType,
+  autoCapitalize,
+  secureTextEntry,
+}) {
   const c = useTheme();
   return (
     <View style={[styles.field, style]}>
@@ -25,6 +36,7 @@ export function TextField({ label, value, onChangeText, placeholder, multiline, 
           styles.input,
           { color: c.text, backgroundColor: c.cardBg, borderColor: c.border },
           multiline && styles.multiline,
+          inputStyle,
         ]}
       />
     </View>

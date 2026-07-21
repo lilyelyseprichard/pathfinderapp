@@ -24,6 +24,13 @@ export function normalizeStory(story) {
   story.quotes = story.quotes || [];
   story.board = story.board || [];
   story.draft = story.draft && Array.isArray(story.draft.blocks) ? story.draft : { blocks: [] };
+  story.draft.font = story.draft.font || "system";
+  story.draft.blocks.forEach((b) => {
+    b.bold = b.bold || false;
+    b.italic = b.italic || false;
+    b.underline = b.underline || false;
+    b.indent = b.indent || false;
+  });
   story.locked = story.locked || false;
   story.passwordHash = story.passwordHash || null;
   story.published = story.published || false;
