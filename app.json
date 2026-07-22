@@ -26,9 +26,6 @@
         "resizeMode": "contain"
       }
     },
-    "experiments": {
-      "baseUrl": "/pressroom"
-    },
     "plugins": [
       "expo-audio",
       "expo-sharing"
