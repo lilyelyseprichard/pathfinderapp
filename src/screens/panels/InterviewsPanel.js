@@ -78,6 +78,7 @@ export default function InterviewsPanel({ story, update }) {
   const [pendingTitle, setPendingTitle] = useState("");
   const [elapsedSec, setElapsedSec] = useState(0);
   const [search, setSearch] = useState("");
+  const [listSearch, setListSearch] = useState("");
   const [lineModalVisible, setLineModalVisible] = useState(false);
   const [lineSpeaker, setLineSpeaker] = useState("");
   const [lineText, setLineText] = useState("");
@@ -231,6 +232,16 @@ export default function InterviewsPanel({ story, update }) {
     notify("Saved to Quote Bank.");
   }
 
+  function matchingLines(interview, q) {
+    if (!q) return [];
+    return interview.transcript.filter((seg) => (seg.speaker + " " + seg.text).toLowerCase().includes(q));
+  }
+
+  function openInterview(id, keyword) {
+    setViewingId(id);
+    setSearch(keyword || "");
+  }
+
   if (phase === "setup") {
     return (
       <DetailCard>
@@ -329,6 +340,13 @@ export default function InterviewsPanel({ story, update }) {
     );
   }
 
+  const listQuery = listSearch.trim().toLowerCase();
+  const visibleInterviews = story.interviews.filter((i) => {
+    if (!listQuery) return true;
+    if (i.title.toLowerCase().includes(listQuery)) return true;
+    return matchingLines(i, listQuery).length > 0;
+  });
+
   return (
     <View>
       <SectionHeader
@@ -338,15 +356,33 @@ export default function InterviewsPanel({ story, update }) {
       {story.interviews.length === 0 ? (
         <EmptyState>No interviews recorded yet.</EmptyState>
       ) : (
-        story.interviews.map((i) => (
-          <ListRow
-            key={i.id}
-            title={i.title}
-            subtitle={`${i.date || ""} · ${formatDuration(i.durationSec || 0)}`}
-            meta={`${i.transcript.length} transcript line${i.transcript.length === 1 ? "" : "s"}`}
-            onPress={() => setViewingId(i.id)}
+        <>
+          <TextField
+            value={listSearch}
+            onChangeText={setListSearch}
+            placeholder="Search transcripts across all interviews..."
+            style={{ marginBottom: 12 }}
           />
-        ))
+          {visibleInterviews.length === 0 ? (
+            <HintBox>No transcripts match "{listSearch}".</HintBox>
+          ) : (
+            visibleInterviews.map((i) => {
+              const hits = matchingLines(i, listQuery);
+              const meta = listQuery
+                ? `${hits.length} match${hits.length === 1 ? "" : "es"}${hits[0] ? ` — "${hits[0].speaker}: ${hits[0].text.slice(0, 60)}${hits[0].text.length > 60 ? "…" : ""}"` : ""}`
+                : `${i.transcript.length} transcript line${i.transcript.length === 1 ? "" : "s"}`;
+              return (
+                <ListRow
+                  key={i.id}
+                  title={i.title}
+                  subtitle={`${i.date || ""} · ${formatDuration(i.durationSec || 0)}`}
+                  meta={meta}
+                  onPress={() => openInterview(i.id, listQuery ? listSearch : "")}
+                />
+              );
+            })
+          )}
+        </>
       )}
     </View>
   );
