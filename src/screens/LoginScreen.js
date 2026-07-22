@@ -14,7 +14,7 @@ function notify(message) {
 
 export default function LoginScreen() {
   const c = useTheme();
-  const { signInEmail, signUpEmail, resetPassword, configured } = useAuth();
+  const { signInEmail, signUpEmail, signInGoogle, resetPassword, configured } = useAuth();
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,6 +40,18 @@ export default function LoginScreen() {
     } catch (err) {
       notify(err.message);
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setBusy(true);
+    try {
+      await signInGoogle();
+      // On success the browser navigates away to Google's consent screen,
+      // so there's nothing left to do here — only reset busy on failure.
+    } catch (err) {
+      notify(err.message);
       setBusy(false);
     }
   }
@@ -77,12 +89,13 @@ export default function LoginScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.oauthBtn, styles.disabledBtn, { borderColor: c.border, backgroundColor: c.cardBg }]}>
-          <Text style={{ color: c.textDim }}>🔵 Continue with Google</Text>
-          <View style={[styles.soonTag, { backgroundColor: c.accentSoft }]}>
-            <Text style={{ color: c.accent, fontSize: 11, fontWeight: "600" }}>Coming soon</Text>
-          </View>
-        </View>
+        <Pressable
+          onPress={handleGoogleSignIn}
+          disabled={busy}
+          style={[styles.oauthBtn, { borderColor: c.border, backgroundColor: c.cardBg, opacity: busy ? 0.6 : 1 }]}
+        >
+          <Text style={{ color: c.text }}>🔵 Continue with Google</Text>
+        </Pressable>
 
         <View style={[styles.oauthBtn, styles.disabledBtn, { borderColor: c.border, backgroundColor: c.cardBg }]}>
           <Text style={{ color: c.textDim }}>Continue with Apple</Text>
