@@ -1,3 +1,5 @@
+import { htmlToPlainText } from "./richText";
+
 // A story's stage is no longer something the user sets by hand — it's
 // evaluated from what's actually in the story, so it can't drift out of sync
 // with real progress. "Published" is the one exception: whether a piece
@@ -13,8 +15,9 @@ export function computeStage(story) {
   if (story.published) return "Published";
 
   const blocks = story.draft?.blocks || [];
-  const nonEmptyBlocks = blocks.filter((b) => b.text && b.text.trim().length > 0);
-  const wordCount = nonEmptyBlocks.reduce((sum, b) => sum + b.text.trim().split(/\s+/).length, 0);
+  const texts = blocks.map((b) => htmlToPlainText(b.html));
+  const nonEmptyBlocks = blocks.filter((_, i) => texts[i].length > 0);
+  const wordCount = texts.reduce((sum, t) => sum + (t ? t.split(/\s+/).length : 0), 0);
   const linkedBlocks = nonEmptyBlocks.filter((b) => b.links && b.links.length > 0);
   const linkedRatio = nonEmptyBlocks.length ? linkedBlocks.length / nonEmptyBlocks.length : 0;
 

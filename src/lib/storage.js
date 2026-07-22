@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { uuid } from "./id";
 import { setFileStoreUser, remove as removeFile } from "./fileStore";
 import { supabase, supabaseConfigured } from "./supabase";
+import { escapeHtml } from "./richText";
 
 const StoryContext = createContext(null);
 
@@ -26,10 +27,22 @@ export function normalizeStory(story) {
   story.draft = story.draft && Array.isArray(story.draft.blocks) ? story.draft : { blocks: [] };
   story.draft.font = story.draft.font || "system";
   story.draft.blocks.forEach((b) => {
-    b.bold = b.bold || false;
-    b.italic = b.italic || false;
-    b.underline = b.underline || false;
     b.indent = b.indent || false;
+    // Migrate from the old per-block bold/italic/underline booleans (whole
+    // paragraph, plain text) to character-level formatting stored as a
+    // small HTML string. Wrapping the old flags around the escaped text
+    // preserves whatever formatting existing paragraphs already had.
+    if (typeof b.html !== "string") {
+      let html = escapeHtml(b.text || "");
+      if (b.bold) html = `<b>${html}</b>`;
+      if (b.italic) html = `<i>${html}</i>`;
+      if (b.underline) html = `<u>${html}</u>`;
+      b.html = html;
+    }
+    delete b.text;
+    delete b.bold;
+    delete b.italic;
+    delete b.underline;
   });
   story.locked = story.locked || false;
   story.passwordHash = story.passwordHash || null;

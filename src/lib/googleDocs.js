@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { htmlToPlainText } from "./richText";
 
 // Google Identity Services token client — a client-side-only OAuth flow (no
 // client secret, no backend). Requires a Google Cloud OAuth client ID with
@@ -79,9 +80,12 @@ async function docsApiFetch(url, body, accessToken) {
   return res.json();
 }
 
-// One paragraph per draft block, in order — matches how they read in the Draft tab.
+// One paragraph per draft block, in order — matches how they read in the
+// Draft tab. Character-level bold/italic/underline formatting doesn't carry
+// over to the exported doc (it's inserted as plain text); that's a known
+// gap, not something this handles yet.
 function draftToPlainText(draft) {
-  return (draft?.blocks || []).map((b) => b.text || "").join("\n\n");
+  return (draft?.blocks || []).map((b) => htmlToPlainText(b.html)).join("\n\n");
 }
 
 export async function exportStoryToGoogleDoc(story) {
