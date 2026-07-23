@@ -14,7 +14,7 @@ import QuoteBankPanel from "./panels/QuoteBankPanel";
 import ResearchBoardPanel from "./panels/ResearchBoardPanel";
 import DraftPanel from "./panels/DraftPanel";
 
-const TABS = ["Sources", "Interviews", "Evidence Locker", "Timeline", "Quote Bank", "Research Board", "Draft"];
+const TABS = ["Sources", "Interviews", "Evidence Locker", "Timeline", "Quote Bank", "Bulletin Board", "Draft"];
 
 export default function StoryWorkspaceScreen({ storyId }) {
   const c = useTheme();
@@ -63,7 +63,7 @@ export default function StoryWorkspaceScreen({ storyId }) {
     case "Quote Bank":
       panel = <QuoteBankPanel story={story} update={update} />;
       break;
-    case "Research Board":
+    case "Bulletin Board":
       panel = <ResearchBoardPanel story={story} update={update} />;
       break;
     case "Draft":
